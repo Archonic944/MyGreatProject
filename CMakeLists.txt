@@ -220,16 +220,3 @@ if(True)
             sheenbidi
     )
 endif()
-
-add_executable(test_plugins Source/TDD/test_plugins.cpp)
-
-target_link_libraries(test_plugins PRIVATE
-        MyGreatProject_Shared_Code
-)
-
-target_include_directories(test_plugins PRIVATE
-        # add the path(s) where JuceHeader.h is generated/found
-        "${CMAKE_CURRENT_BINARY_DIR}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE/modules"
-        # etc.
-)

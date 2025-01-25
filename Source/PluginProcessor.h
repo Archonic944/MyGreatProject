@@ -52,8 +52,24 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+
+    void setDelayLength(float len);
+
+    void setDelayFeedback(float feedback);
+
+    void runTests();
+
     //=========
     static int getMagicNumber();
+    float feedback = 0.5; //from 0 to 1
+    float length = 1.0;
+    float MAX_LENGTH = 5.0;
+    float MAX_FEEDBACK = 0.99;
+
+    int TESTS_NUM = 2;
+    int TESTS_SUCCEEDED = 0;
+
+    bool output = true;
 
 private:
     //==============================================================================

@@ -22,10 +22,12 @@ MyGreatProjectAudioProcessor::MyGreatProjectAudioProcessor()
                        )
 #endif
 {
+    runTests();
 }
 
 MyGreatProjectAudioProcessor::~MyGreatProjectAudioProcessor()
 {
+    output = false; //on destroy, mute
 }
 
 //==============================================================================
@@ -154,9 +156,13 @@ void MyGreatProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     {
         auto* channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
+
     }
+
+    if (!output) buffer.applyGain(0.0); //mute if we failed any tests
 }
+
+
 
 //==============================================================================
 bool MyGreatProjectAudioProcessor::hasEditor() const
@@ -181,6 +187,39 @@ void MyGreatProjectAudioProcessor::setStateInformation (const void* data, int si
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+void MyGreatProjectAudioProcessor::setDelayLength(float length) {
+    this ->length = length;
+}
+
+void MyGreatProjectAudioProcessor::setDelayFeedback(float feedback) {
+    this ->feedback = feedback;
+}
+
+void MyGreatProjectAudioProcessor::runTests() {
+    int currentLength = length;
+    //first test: can set delay length
+    setDelayLength(2.0);
+    if (std::abs(length - 2.0) <= 0.0001) {
+        setDelayLength(MAX_LENGTH + 1);
+        if (length == MAX_LENGTH) TESTS_SUCCEEDED++;
+    }
+    setDelayLength(length); //reset delay length
+
+
+    //second test: can set feedback amount, check feedback amount
+    int currentFeedback = feedback;
+    setDelayFeedback(0.4);
+    if (std::abs(feedback - 0.4) < 0.0001) {
+        setDelayFeedback(1.2); //should clamp
+        if (feedback <= 1.0) TESTS_SUCCEEDED++;
+    }
+    setDelayFeedback(currentFeedback);
+
+    if (TESTS_SUCCEEDED < TESTS_NUM) {
+        output = false; //mutes the plugin
+    }
 }
 
 int MyGreatProjectAudioProcessor::getMagicNumber() {
