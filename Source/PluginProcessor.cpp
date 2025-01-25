@@ -190,7 +190,8 @@ void MyGreatProjectAudioProcessor::setStateInformation (const void* data, int si
 }
 
 void MyGreatProjectAudioProcessor::setDelayLength(float length) {
-    this ->length = length;
+    if (length > MAX_LENGTH) this->length = MAX_LENGTH;
+    else this->length = length;
 }
 
 void MyGreatProjectAudioProcessor::setDelayFeedback(float feedback) {
