@@ -194,7 +194,8 @@ void MyGreatProjectAudioProcessor::setDelayLength(float length) {
 }
 
 void MyGreatProjectAudioProcessor::setDelayFeedback(float feedback) {
-    this ->feedback = feedback;
+    feedback = std::clamp(feedback, 0.0f, 1.0f);
+    this->feedback = feedback;
 }
 
 void MyGreatProjectAudioProcessor::runTests() {
