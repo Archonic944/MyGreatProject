@@ -25,11 +25,18 @@ MyGreatProjectAudioProcessorEditor::~MyGreatProjectAudioProcessorEditor()
 //==============================================================================
 void MyGreatProjectAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    using namespace juce;
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (15.0f));
-    g.drawFittedText ("Tests passed: " + juce::String(audioProcessor.TESTS_SUCCEEDED) + "/"  + juce::String(audioProcessor.TESTS_NUM), getLocalBounds(), juce::Justification::centred, 1);
+    String str = "";
+    for (const bool val : audioProcessor.tests) {
+        str = str + String(static_cast<int>(val)) + " ";
+    }
+
+    String compileTime = Time::getCompilationDate().formatted("%c");
+    g.drawFittedText ("Tests1: " + str + "\nCompile time: " + compileTime, getLocalBounds(), juce::Justification::centred, 2);
 }
 
 void MyGreatProjectAudioProcessorEditor::resized()

@@ -12,3 +12,6 @@ _deps
 /build/
 .idea/
 /cmake-build-debug
+/MyGreatProject.app
+/MyGreatProject.component
+/MyGreatProject.vst3

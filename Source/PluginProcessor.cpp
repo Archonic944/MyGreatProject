@@ -7,7 +7,12 @@
 */
 
 #include "PluginProcessor.h"
+
+#include "JuceHeader.h"
 #include "PluginEditor.h"
+
+#define MAX_DELAY_LENGTH 5
+#define MAX_FEEDBACK 0.99f
 
 //==============================================================================
 MyGreatProjectAudioProcessor::MyGreatProjectAudioProcessor()
@@ -24,6 +29,7 @@ MyGreatProjectAudioProcessor::MyGreatProjectAudioProcessor()
 {
     runTests();
 }
+
 
 MyGreatProjectAudioProcessor::~MyGreatProjectAudioProcessor()
 {
@@ -95,14 +101,24 @@ void MyGreatProjectAudioProcessor::changeProgramName (int index, const juce::Str
 //==============================================================================
 void MyGreatProjectAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    auto sampleRateInt = static_cast<unsigned long>(std::ceil(sampleRate));
+    //Check if buffer needs to be reallocated | treating buffer_left and right as the same in this case
+    unsigned long bufferLength = MAX_DELAY_LENGTH * sampleRateInt;
+    if (buffer_left.size() != bufferLength) {
+        buffer_left.resize(bufferLength, 0.0f);
+        buffer_right.resize(bufferLength, 0.0f);
+    }
+    refreshDelayLen(sampleRateInt);
+}
+
+void MyGreatProjectAudioProcessor::refreshDelayLen(unsigned long sampleRate) {
+    delayLengthSmp = sampleRate * length;
 }
 
 void MyGreatProjectAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    buffer_left.resize(0);
+    buffer_right.resize(0);
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -131,6 +147,7 @@ bool MyGreatProjectAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
 }
 #endif
 
+
 void MyGreatProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -152,17 +169,31 @@ void MyGreatProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
+    double rate = getSampleRate();
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        auto* channelData = buffer.getWritePointer (channel);
+        float* channelData = buffer.getWritePointer (channel);
+        for (int i = 0; i<buffer.getNumSamples(); i++) {
 
-
+        }
     }
 
     if (!output) buffer.applyGain(0.0); //mute if we failed any tests
 }
 
-
+//push to a delay line. side is 'l' or 'r'. takes feedback % into account by summing the discarded block with the end of the delay line. returns a block of equal length that was ejected from the array.
+const float *MyGreatProjectAudioProcessor::pushToBuffer(const float *sampleBlock, int blockLength, const char side) {
+    std::vector<float>& toPush = (side == 'l' ? buffer_left : buffer_right);
+    return sampleBlock;
+    //assert(blockLength <= toPush.size());
+    // assert(sizeof(sampleBlock > 0));
+    // int len = sizeof(sampleBlock);
+    // for (int i = 0; i<len; i++) {
+    //     toPush.erase(toPush.begin(), toPush.begin() + len);
+    //     toPush.push_back(sampleBlock[i]);
+    // }
+    // TDD: Pretend this isn't here.
+}
 
 //==============================================================================
 bool MyGreatProjectAudioProcessor::hasEditor() const
@@ -190,37 +221,48 @@ void MyGreatProjectAudioProcessor::setStateInformation (const void* data, int si
 }
 
 void MyGreatProjectAudioProcessor::setDelayLength(float length) {
-    if (length > MAX_LENGTH) this->length = MAX_LENGTH;
+    if (length > MAX_DELAY_LENGTH) this->length = MAX_DELAY_LENGTH;
     else this->length = length;
 }
 
 void MyGreatProjectAudioProcessor::setDelayFeedback(float feedback) {
-    feedback = std::clamp(feedback, 0.0f, 1.0f);
-    this->feedback = feedback;
+    this->feedback = std::clamp(feedback, 0.0f, MAX_FEEDBACK);
+}
+
+void MyGreatProjectAudioProcessor::test(bool val) {
+    //my very intricate testing system
+    tests.push_back(val);
+    if (!val) output = false;
+
 }
 
 void MyGreatProjectAudioProcessor::runTests() {
-    int currentLength = length;
-    //first test: can set delay length
-    setDelayLength(2.0);
-    if (std::abs(length - 2.0) <= 0.0001) {
-        setDelayLength(MAX_LENGTH + 1);
-        if (length == MAX_LENGTH) TESTS_SUCCEEDED++;
-    }
-    setDelayLength(length); //reset delay length
+    try {
+        const float currentLength = length;
+        //first test: delay length: a. can be set; b. is capped properly
+        setDelayLength(2.0);
+        test(std::abs(length - 2.0) <= 0.0001);
+        setDelayLength(MAX_DELAY_LENGTH + 1);
+        test(length == MAX_DELAY_LENGTH);
 
-
-    //second test: can set feedback amount, check feedback amount
-    int currentFeedback = feedback;
-    setDelayFeedback(0.4);
-    if (std::abs(feedback - 0.4) < 0.0001) {
+        //second test: can set feedback amount
+        const float currentFeedback = feedback;
+        setDelayFeedback(0.4);
+        test(std::abs(feedback - 0.4) < 0.0001);
+        //third test: feedback amount clamps correctly
         setDelayFeedback(1.2); //should clamp
-        if (feedback <= 1.0) TESTS_SUCCEEDED++;
-    }
-    setDelayFeedback(currentFeedback);
-
-    if (TESTS_SUCCEEDED < TESTS_NUM) {
-        output = false; //mutes the plugin
+        test(feedback <= MAX_FEEDBACK);
+        //fourth test: buffer allocates correctly
+        this->prepareToPlay(100, 10);
+        test(buffer_left.size() == 100 * MAX_DELAY_LENGTH); // NOLINT(*-narrowing-conversions)
+        //fifth test: can push a block of samples to our hypothetical vector, multiple times, and receive the correct value
+        delayLengthSmp = 50; //we only use the first half of the array
+        //reset values back to default
+        setDelayFeedback(currentFeedback);
+        setDelayLength(currentLength);
+    } catch (...) {
+        std::cout << "An assertion failed during test runs. Please check the console." << std::endl;
+        test(false); //make sure we mute output
     }
 }
 

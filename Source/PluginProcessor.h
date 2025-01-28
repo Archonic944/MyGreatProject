@@ -13,8 +13,11 @@
 //==============================================================================
 /**
 */
+
 class MyGreatProjectAudioProcessor  : public juce::AudioProcessor
 {
+
+
 public:
     //==============================================================================
     MyGreatProjectAudioProcessor();
@@ -22,6 +25,9 @@ public:
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+
+    void refreshDelayLen(unsigned long sampleRate);
+
     void releaseResources() override;
 
    #ifndef JucePlugin_PreferredChannelConfigurations
@@ -29,6 +35,8 @@ public:
    #endif
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    const float *pushToBuffer(const float *sampleBlock, int blockLength, char side);
 
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;
@@ -57,20 +65,22 @@ public:
 
     void setDelayFeedback(float feedback);
 
+    void test(bool val);
+
     void runTests();
 
     //=========
     static int getMagicNumber();
     float feedback = 0.5; //from 0 to 1
     float length = 1.0;
-    float MAX_LENGTH = 5.0;
-    float MAX_FEEDBACK = 0.99;
-
-    int TESTS_NUM = 2;
-    int TESTS_SUCCEEDED = 0;
+    unsigned long delayLengthSmp = -1; //set in the prepareToPlay function
 
     bool output = true;
-
+    //======
+    std::vector<float> buffer_left;
+    std::vector<float> buffer_right;
+    //======
+    std::vector<bool> tests;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MyGreatProjectAudioProcessor)
