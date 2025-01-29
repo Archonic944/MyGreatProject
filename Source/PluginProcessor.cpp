@@ -253,10 +253,33 @@ void MyGreatProjectAudioProcessor::runTests() {
         setDelayFeedback(1.2); //should clamp
         test(feedback <= MAX_FEEDBACK);
         //fourth test: buffer allocates correctly
-        this->prepareToPlay(100, 10);
+        int blockSize = 10;
+        this->prepareToPlay(100, blockSize);
         test(buffer_left.size() == 100 * MAX_DELAY_LENGTH); // NOLINT(*-narrowing-conversions)
         //fifth test: can push a block of samples to our hypothetical vector, multiple times, and receive the correct value
-        delayLengthSmp = 50; //we only use the first half of the array
+        delayLengthSmp = 50; //we only use the first half of the array. this value is reset on prepareToPlay so it's fine to modify
+        setDelayFeedback(0.5);
+        //now we test the echo effect.
+        using namespace juce;
+        std::vector input = {0.25f, 0.5f, 1.0f, 0.25f, 0.5f, 1.0f, 0.25f, 0.5f, 1.0f, 0.5f}; //dummy "audio"
+        std::vector expected = input;
+        FloatVectorOperations::multiply(expected.data(), feedback, input.size());
+        pushToBuffer(input.data(), 10, 'l'); //push initial values
+        const float *finalOutput = nullptr;
+        //that expected data should come back after 5 blocks
+        for (int i = 0; i<(delayLengthSmp/blockSize - 1); i++) {
+            finalOutput = pushToBuffer(std::vector<float>(10).data(), blockSize, 'l'); //push 4 blocks of zeroes
+        }
+        bool equal = true;
+        //check they're equal
+        for (int i = 0; i<blockSize; i++) {
+            if (!(*finalOutput == expected[i])) {
+                equal = false;
+                break;
+            }
+            finalOutput++;
+        }
+        test(equal);
         //reset values back to default
         setDelayFeedback(currentFeedback);
         setDelayLength(currentLength);
