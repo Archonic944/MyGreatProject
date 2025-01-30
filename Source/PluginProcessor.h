@@ -36,7 +36,7 @@ public:
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
-    const float *pushToBuffer(const float *sampleBlock, int blockLength, char side);
+    void pushToBuffer(const float *sampleBlock, float *blockOut, int blockLength, char side);
 
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;
@@ -65,15 +65,18 @@ public:
 
     void setDelayFeedback(float feedback);
 
-    void test(bool val);
+    void test(bool val, std::string message);
 
     void runTests();
+
+    static juce::String array_to_string(float *arr, int len);
 
     //=========
     static int getMagicNumber();
     float feedback = 0.5; //from 0 to 1
     float length = 1.0;
     unsigned long delayLengthSmp = -1; //set in the prepareToPlay function
+    std::vector<std::string> messages = {};
 
     bool output = true;
     //======

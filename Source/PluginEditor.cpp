@@ -35,8 +35,11 @@ void MyGreatProjectAudioProcessorEditor::paint (juce::Graphics& g)
         str = str + String(static_cast<int>(val)) + " ";
     }
 
-    String compileTime = Time::getCompilationDate().formatted("%c");
-    g.drawFittedText ("Tests1: " + str + "\nCompile time: " + compileTime, getLocalBounds(), juce::Justification::centred, 2);
+    String msg = "Tests: " + str;
+    for (std::string str : audioProcessor.messages) {
+        msg += "\n" + String(str);
+    }
+    g.drawFittedText (msg, getLocalBounds(), juce::Justification::centred, 4);
 }
 
 void MyGreatProjectAudioProcessorEditor::resized()
