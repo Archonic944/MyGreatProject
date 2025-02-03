@@ -104,10 +104,10 @@ void MyGreatProjectAudioProcessor::prepareToPlay (double sampleRate, int samples
     auto sampleRateInt = static_cast<unsigned long>(std::ceil(sampleRate));
     //Check if buffer needs to be reallocated | treating buffer_left and right as the same in this case
     unsigned long bufferLength = MAX_DELAY_LENGTH * sampleRateInt;
-    if (buffer_left.size() != bufferLength) {
-        buffer_left.resize(bufferLength, 0.0f);
-        buffer_right.resize(bufferLength, 0.0f);
-    }
+    buffer_left = std::vector(bufferLength, 0.0f);
+    buffer_right = std::vector(bufferLength, 0.0f);
+    block_vector = std::vector(samplesPerBlock, 0.0f);
+    block_vector_2 = std::vector(samplesPerBlock, 0.0f);
     refreshDelayLen(sampleRateInt);
 }
 
@@ -181,31 +181,28 @@ void MyGreatProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             channelData++;
         }
     }
-
     if (!output) buffer.applyGain(0.0); //mute if we failed any tests
 }
 
 //push to a delay line. side is 'l' or 'r'. takes feedback % into account by summing the discarded block with the end of the delay line. returns a block of equal length that was ejected from the array.
 void MyGreatProjectAudioProcessor::pushToBuffer(const float *sampleBlock, float* blockOut, int blockLength,
                                                   const char side) {
+    block_vector.clear(); //block_vector stores the audio we're popping in, modified by feedback
     std::vector<float>& toPush = (side == 'l' ? buffer_left : buffer_right);
-    std::vector<float> feedbackVec{};
-    feedbackVec.reserve(blockLength);
     const float *sampleBlockIter = sampleBlock;
     for (int i = 0; i<blockLength; i++) {
-        feedbackVec.push_back(*sampleBlockIter);
-        sampleBlockIter++;
-    }
-    using namespace juce;
-    FloatVectorOperations::multiply(feedbackVec.data(), sampleBlock, feedback, blockLength);
-    assert(blockLength <= toPush.size());
-    auto iterator = toPush.erase(toPush.begin(), toPush.begin() + blockLength); //take the beginning of the buffer out
-    for (int j = 0; j<blockLength; j++) {
-        //instead of pushing to the back of the vector, we'll push at delay_length - block length
-        toPush.insert(toPush.begin() + (delayLengthSmp - blockLength + j), feedbackVec[j]); // NOLINT(*-narrowing-conversions)
-        *blockOut = *(iterator++);
+        //insert popped samples into blockOut, before we actually pop them
+        *blockOut = toPush[i];
         blockOut++;
-    } //insert our feedback-modified sample block
+    }
+    toPush.erase(toPush.begin(), toPush.begin() + blockLength); //take the beginning of the buffer out
+    using namespace juce;
+    FloatVectorOperations::multiply(block_vector.data(), sampleBlock, feedback, blockLength);
+    assert(blockLength <= toPush.size());
+    for (int j = 0; j<blockLength; j++) { //insert our feedback-modified sample block
+        //instead of pushing to the back of the vector, we'll push at delay_length - block length
+        toPush.insert(toPush.begin() + (delayLengthSmp - blockLength + j), block_vector[j]); // NOLINT(*-narrowing-conversions)
+    }
 }
 
 //==============================================================================
@@ -280,8 +277,8 @@ void MyGreatProjectAudioProcessor::runTests() {
         float finalOutput[blockSize];
         pushToBuffer(input.data(), finalOutput, 10, 'l'); //push initial values
         //that expected data should come back after 5 blocks
-        for (int i = 0; i<(delayLengthSmp/blockSize - 1); i++) {
-            pushToBuffer(std::vector<float>(10).data(), finalOutput, blockSize, 'l'); //push 4 blocks of zeroes
+        for (int i = 0; i<(delayLengthSmp/blockSize); i++) {
+            pushToBuffer(std::vector<float>(10).data(), finalOutput, blockSize, 'l'); //push 5 blocks of zeroes
         }
         bool equal = true;
         //check they're equal

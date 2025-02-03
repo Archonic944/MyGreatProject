@@ -82,6 +82,8 @@ public:
     //======
     std::vector<float> buffer_left;
     std::vector<float> buffer_right;
+    std::vector<float> block_vector;
+    std::vector<float> block_vector_2;
     //======
     std::vector<bool> tests;
 private:
